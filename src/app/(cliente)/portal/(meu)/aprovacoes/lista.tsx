@@ -66,13 +66,40 @@ export function ListaDeAprovacoes({
   decididas,
   base = "/portal",
   somenteLeitura = false,
+  projeto = null,
 }: {
   esperando: AprovacaoDoCliente[];
   decididas: AprovacaoDoCliente[];
+  /** Quando a fila está estreitada a um projeto (`?projeto=`). */
+  projeto?: string | null;
   /** Prefixo dos links, para a peça abrir no portal certo. */
   base?: string;
   somenteLeitura?: boolean;
 }) {
+  const nomeDoProjeto =
+    projeto !== null
+      ? ([...esperando, ...decididas][0]?.demanda ?? null)
+      : null;
+
+  if (projeto !== null && esperando.length === 0 && decididas.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href={`${base}/aprovacoes`}
+          className="text-accent-strong inline-flex items-center gap-1 text-sm font-medium hover:underline"
+        >
+          Ver todas as aprovações
+          <ArrowRight aria-hidden className="size-4" />
+        </Link>
+        <EmptyState
+          icon={BadgeCheck}
+          title="Nenhuma entrega enviada ainda"
+          description="Assim que a agência enviar o primeiro material deste projeto, ele aparece aqui para você ver e aprovar."
+        />
+      </div>
+    );
+  }
+
   if (esperando.length === 0 && decididas.length === 0) {
     return (
       <EmptyState
@@ -91,6 +118,18 @@ export function ListaDeAprovacoes({
 
   return (
     <div className="space-y-8">
+      {projeto !== null ? (
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <p className="text-lg font-bold">{nomeDoProjeto}</p>
+          <Link
+            href={`${base}/aprovacoes`}
+            className="text-accent-strong inline-flex items-center gap-1 text-sm font-medium hover:underline"
+          >
+            Ver todas as aprovações
+            <ArrowRight aria-hidden className="size-4" />
+          </Link>
+        </div>
+      ) : null}
       <section className="space-y-3">
         <h2 className="text-xl font-bold tracking-[-0.02em]">
           {somenteLeitura ? "Esperando o cliente" : "Esperando você"}
@@ -118,7 +157,11 @@ export function ListaDeAprovacoes({
           <h2 className="text-xl font-bold tracking-[-0.02em]">Já decididas</h2>
           <ul className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
             {decididas.map((item) => (
-              <Decidida key={item.rodadaId} item={item} />
+              <Decidida
+                key={item.rodadaId}
+                item={item}
+                comPrevia={projeto !== null}
+              />
             ))}
           </ul>
         </section>
@@ -331,6 +374,7 @@ function familiaDaEntrega(entrega: Entrega): "imagem" | "pdf" | "outro" {
 function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
   const visiveis = entregas.filter((e) => e.assinado !== null);
   const [indice, setIndice] = useState(0);
+  const [ampliada, setAmpliada] = useState(false);
   if (visiveis.length === 0) return null;
 
   const atual = visiveis[Math.min(indice, visiveis.length - 1)];
@@ -340,11 +384,22 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
     <div className="space-y-3">
       <div className="bg-muted overflow-hidden rounded-xl border">
         {familia === "imagem" ? (
-          <ImagemAssinada
-            src={atual.assinado}
-            alt={nomeDaEntrega(atual)}
-            className="mx-auto h-56 w-auto object-contain"
-          />
+          /* A IMAGEM NO TAMANHO DELA, dentro de um palco. Ela nunca é
+             esticada (um ícone de 96px continua com 96px) e só encolhe quando
+             é maior que o cartão; o clique abre o tamanho original. */
+          <button
+            type="button"
+            onClick={() => setAmpliada(true)}
+            aria-label={`Ampliar ${nomeDaEntrega(atual)}`}
+            className="flex min-h-56 w-full cursor-zoom-in items-center justify-center p-5"
+          >
+            <ImagemAssinada
+              emFluxo
+              src={atual.assinado}
+              alt={nomeDaEntrega(atual)}
+              className="max-h-[420px] max-w-full rounded-md"
+            />
+          </button>
         ) : familia === "pdf" ? (
           <iframe
             key={atual.id}
@@ -393,12 +448,34 @@ function PreviaDosArquivos({ entregas }: { entregas: Entrega[] }) {
           Abrir em outra aba
         </a>
       </div>
+
+      <Dialog open={ampliada} onOpenChange={setAmpliada}>
+        <DialogContent className="max-h-[92vh] w-auto max-w-[95vw] overflow-auto sm:max-w-[95vw]">
+          <DialogHeader>
+            <DialogTitle>{nomeDaEntrega(atual)}</DialogTitle>
+            <DialogDescription>No tamanho original.</DialogDescription>
+          </DialogHeader>
+          <ImagemAssinada
+            emFluxo
+            src={atual.assinado}
+            alt={nomeDaEntrega(atual)}
+            className="max-w-none"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 /** A linha de uma rodada já decidida: o que foi, o desfecho e quando. */
-function Decidida({ item }: { item: AprovacaoDoCliente }) {
+function Decidida({
+  item,
+  comPrevia = false,
+}: {
+  item: AprovacaoDoCliente;
+  /** Na fila de um projeto, o material já decidido também se vê. */
+  comPrevia?: boolean;
+}) {
   const aprovada = item.status === "aprovada";
   const desfecho = DESFECHO_DA_RODADA[item.status];
   const capa = item.entregas.find(
@@ -406,10 +483,11 @@ function Decidida({ item }: { item: AprovacaoDoCliente }) {
   );
 
   return (
-    <li className="bg-surface-card rounded-card shadow-cartao flex items-start gap-4 border p-4">
+    <li className="bg-surface-card rounded-card shadow-cartao space-y-4 border p-4">
+      <div className="flex items-start gap-4">
       <div
         className={cn(
-          "flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
+          "relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg",
           aprovada ? "bg-success-soft text-success" : "bg-muted text-text-muted",
         )}
       >
@@ -447,6 +525,8 @@ function Decidida({ item }: { item: AprovacaoDoCliente }) {
             : ""}
         </p>
       </div>
+      </div>
+      {comPrevia ? <PreviaDosArquivos entregas={item.entregas} /> : null}
     </li>
   );
 }
