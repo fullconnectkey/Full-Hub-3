@@ -1193,7 +1193,19 @@ from (
     ('0153', 'a etapa que o cliente ve sem envio (PASSO 4)', 'funcao',
              'etapas_da_campanha_para_o_cliente'),
     ('0154', 'os dois carimbos da corrente que o cliente ve', 'funcao',
-             'criacao_e_revisao_das_pecas')
+             'criacao_e_revisao_das_pecas'),
+    -- A 0155 REMENDA SETE FUNCOES PELO CATALOGO e cria UMA: o marcador e a
+    -- que nasce, que e o PASSO 3 -- e os remendos do PASSO 2 vem antes dela,
+    -- entao uma colagem que morre num remendo responde FALTA.
+    ('0155', 'o aviso sai quando o item sai', 'funcao',
+             'avisos_saem_com_o_item'),
+    ('0156', 'a peca sai de aguardando quando o trabalho comeca', 'funcao',
+             'peca_entra_em_producao'),
+    ('0158', 'as sugestoes para o hub', 'trigger',
+             'sugestoes_so_muda_a_vista')
+    -- SEM LINHA: 0157 - ela so apaga linhas de `campaign_templates`, e nao
+    -- cria objeto nenhum; uma tabela vazia nao distingue aplicada de nunca
+    -- usada.
   ) as v(migration, item, tipo, nome)
 ) x
 order by migration;

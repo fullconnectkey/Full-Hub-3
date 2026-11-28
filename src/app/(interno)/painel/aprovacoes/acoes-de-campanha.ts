@@ -1,5 +1,6 @@
 "use server";
 
+import { levarParaAEtapa } from "@/lib/acoes/ponte-de-arquivos";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -736,9 +737,56 @@ export async function gravarVersaoDoEntregavel(
       );
     }
 
+    // O ARQUIVO DA PEÇA VAI PARA A ETAPA DA DEMANDA — o caminho inverso do
+    // anexo da etapa. Avisa em vez de recusar: a versão já está gravada.
+    const ponte = await levarParaAEtapa(
+      supabase,
+      entregavelId,
+      validado.data.arquivos,
+      sessao.usuarioId,
+    );
+    if (ponte.taskId) {
+      revalidatePath(`/painel/gestao-tasks/${ponte.taskId}`);
+      revalidatePath("/painel/minhas-tasks");
+    }
+
     revalidatePath(ROTA);
     revalidatePath("/portal/campanhas");
-    return sucesso(`Versão ${data[0].numero_versao} gravada.`);
+    return sucesso(
+      `Versão ${data[0].numero_versao} gravada.${ponte.aviso ? ` ${ponte.aviso}` : ""}`,
+    );
+  });
+}
+
+/**
+ * A DEFESA DO KV — o texto que o cliente lê no portal junto com a peça.
+ *
+ * Ela mora em `deliverables.descricao`, que o detalhe do material já desenha
+ * para o cliente desde a 0033: não há coluna nova, há um campo que faltava na
+ * tela da agência. Vazio vira nulo — defesa em branco não é defesa.
+ */
+export async function salvarDefesaDaPeca(
+  entregavelId: string,
+  texto: string,
+): Promise<Resultado> {
+  return executarAcao("salvarDefesaDaPeca", async () => {
+    await exigirRotaNaAcao(ROTA);
+    const supabase = await criarClienteServidor();
+
+    const { data, error } = await supabase
+      .from("deliverables")
+      .update({ descricao: texto.trim() || null })
+      .eq("id", entregavelId)
+      .select("id");
+
+    if (error) return falha(error.message);
+    if (!data || data.length === 0) {
+      return falha("O banco recusou. Mexer na peça é da equipe interna.");
+    }
+
+    revalidatePath(ROTA);
+    revalidatePath("/portal/campanhas");
+    return sucesso("Defesa salva.");
   });
 }
 
