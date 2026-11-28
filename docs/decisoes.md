@@ -21865,3 +21865,7 @@ scripts/                      Verificação de conexão e geradores de protótip
 - **0159 — Relatório em blocos.** Substitui a grade de métricas da 0150: `relatorios.blocos` (jsonb) com destaques, crescimento contra o período anterior (obrigatório, destaca só o que cresceu), conteúdos, texto e referências. Item próprio no menu (`/painel/relatorios`) e seção no portal (`/portal/relatorios`); o cliente só lê o publicado (policy). Sem PDF por decisão do usuário.
 
 - **0160 — Demandas no portal.** `demandas_do_portal()` (security definer) devolve nome, etapas de 1º nível e se há rodada do cliente pendente; o início do portal mostra um box por demanda, em destaque quando há material para aprovar. Sem policy nova em `tasks`/`subtasks`. Fora: rascunho, arquivada, cancelada, mês de social, demanda de campanha, concluída há mais de 14 dias.
+
+- **0161/0162 e envio pelo Atendimento.** 0161: `posts_em_producao_do_portal()` dá ao cliente tema/data/formato do que ainda não foi enviado. 0162: `deliverables.visivel_no_portal` (padrão true) entra na policy do cliente. `enviarParaCliente` passa a aceitar `is_atendimento()` (decisão do usuário: atendimento, sócio ou desenvolvedor); o botão recebe a resposta por `podeEnviarAoCliente`, hoje só na tela da demanda.
+
+- **0163 — Comentário editável e com reação.** `comments.editado_em`, policy de UPDATE só do autor + gatilho que só deixa mudar o texto; `comment_reactions` (cinco emojis). Apagar já era autor ou gestão (`comments_delete`) e ganhou tela. Tudo na thread do portal.

@@ -3854,6 +3854,7 @@ export interface Database {
            * sendo do terceiro de quatro.
            */
           card_versao: number | null;
+          editado_em: string | null;
           created_at: string;
         };
         Insert: {
@@ -3869,7 +3870,8 @@ export interface Database {
           card_indice?: number | null;
           card_versao?: number | null;
         };
-        Update: Record<string, never>;
+        // Só o texto muda — o gatilho da 0163 devolve o resto.
+        Update: { texto?: string };
         Relationships: [];
       };
 
@@ -4026,6 +4028,7 @@ export interface Database {
           versao_atual: number;
           responsavel_id: string | null;
           enviado_em: string | null;
+          visivel_no_portal: boolean;
           created_at: string;
         };
         Insert: {
@@ -4056,6 +4059,7 @@ export interface Database {
           arquivo_nome?: string | null;
           responsavel_id?: string | null;
           subtask_id?: string | null;
+          visivel_no_portal?: boolean;
         };
         Relationships: [];
       };
@@ -4266,6 +4270,21 @@ export interface Database {
           blocos?: Json;
           publicado_em?: string | null;
         };
+        Relationships: [];
+      };
+      comment_reactions: {
+        Row: {
+          comment_id: string;
+          user_id: string;
+          emoji: string;
+          created_at: string;
+        };
+        Insert: {
+          comment_id: string;
+          user_id: string;
+          emoji: string;
+        };
+        Update: Record<string, never>;
         Relationships: [];
       };
       sugestoes: {
