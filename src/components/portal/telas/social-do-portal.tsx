@@ -9,21 +9,19 @@ import { CartaoDePost } from "@/components/portal/cartao-de-post";
 import { FiltrosDePosts } from "@/components/portal/filtros-de-post";
 import { GradeDoFeed } from "@/components/portal/grade-do-feed";
 import { NavegacaoDoMes } from "@/components/portal/navegacao-do-mes";
-import { RelatorioDoMes } from "@/components/portal/relatorio-do-mes";
 import { EmptyState } from "@/components/shared/empty-state";
 import {
   STATUS_DE_CONTEUDO,
   rotuloDoStatus,
 } from "@/components/shared/status-badge";
-import { obterMinhasEmpresas } from "@/lib/dados/clientes";
 import { enderecoDaArte } from "@/lib/dados/conteudo";
+import { conteudosEmProducao } from "@/lib/dados/demandas-do-portal";
 import {
   loteAbertoDoMes,
   postsDoMes,
   urlsDasArtes,
 } from "@/lib/dados/posts";
 import { prazosDoPortal } from "@/lib/dados/portal";
-import { relatoriosDoMes } from "@/lib/dados/relatorio-do-social";
 import {
   ehFaseDoMaterial,
   faseDoMaterial,
@@ -133,27 +131,7 @@ export async function SocialDoPortal({
     todos.some((post) => post.plataformas.includes(rede)),
   );
 
-  // O DESEMPENHO DO MÊS (itens 17 e 18), e esta é a única leitura desta tela
-  // fora do `Promise.all`: os ids das contas saem de outra consulta, que é a
-  // razão escrita no bloco do escopo da tela inicial.
-  //
-  // **PARA A EQUIPE O ID É O DA CONTA SENDO VISTA, NUNCA A LISTA INTEIRA:**
-  // `obterMinhasEmpresas()` devolve TODAS as contas ativas para quem é
-  // `is_staff()` (0002), então a visualização administrativa de uma empresa
-  // mostraria o relatório das vinte e oito. É o mesmo cuidado que
-  // `identidadeDoPortal()` já tinha.
-  //
-  // **E O NOME VAI VAZIO NESSE RAMO de propósito:** o bloco só escreve o nome
-  // da empresa quando há DUAS, e aqui há exatamente uma — procurar a string
-  // numa lista para nunca desenhá-la seria uma consulta por nada.
-  const empresas = clienteId
-    ? [{ id: clienteId, nome_empresa: "" }]
-    : await obterMinhasEmpresas();
-
-  const relatorios = await relatoriosDoMes(
-    empresas.map((e) => e.id),
-    mes,
-  );
+  const emProducao = await conteudosEmProducao(mes, clienteId);
 
   return (
     <div className="space-y-6">
@@ -189,18 +167,42 @@ export async function SocialDoPortal({
           deles, a faixa leria como o resultado de um filtro. */}
       <CabecalhoDoLote lote={lote} />
 
-      {/* O RELATÓRIO VEM DEPOIS DO LOTE E ANTES DOS FILTROS: o lote diz o que
-          CHEGOU neste mês, o relatório diz como foi o que já saiu, e os
-          filtros são como se recorta o que chegou. Depois deles, ele leria
-          como o resultado de um filtro — a razão escrita do cabeçalho do lote,
-          um bloco acima. */}
-      <RelatorioDoMes
-        contas={empresas.map((empresa) => ({
-          nome: empresa.nome_empresa,
-          numeros: relatorios.get(empresa.id)?.numeros ?? [],
-          anteriores: relatorios.get(empresa.id)?.anteriores ?? [],
-        }))}
-      />
+      {/* A FAIXA "EM PRODUÇÃO" (0161): o que a agência está fazendo para este
+          mês e ainda não enviou. Só o tema e a data — sem arte e sem link,
+          porque o material continua atrás do envio. */}
+      {emProducao.length > 0 ? (
+        <section className="bg-surface-card rounded-card shadow-cartao space-y-3 border p-5">
+          <div>
+            <h2 className="text-base font-bold">Em produção na Full</h2>
+            <p className="text-text-muted text-sm">
+              {emProducao.length === 1
+                ? "1 conteúdo deste mês está sendo criado. Ele chega aqui para a aprovação assim que ficar pronto."
+                : `${emProducao.length} conteúdos deste mês estão sendo criados. Eles chegam aqui para a aprovação assim que ficarem prontos.`}
+            </p>
+          </div>
+          <ul className="flex flex-wrap gap-2">
+            {emProducao.map((c) => (
+              <li
+                key={c.id}
+                className="bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              >
+                {c.dataPublicacao ? (
+                  <span className="text-text-muted text-xs tabular-nums">
+                    {c.dataPublicacao.slice(8, 10)}/{c.dataPublicacao.slice(5, 7)}
+                  </span>
+                ) : null}
+                <span className="font-medium">{c.tema}</span>
+                {c.formato ? (
+                  <span className="text-text-muted text-xs">{c.formato}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* O RELATÓRIO SAIU DAQUI (0159): ele é uma seção própria do portal,
+          "Relatórios", no modelo em blocos. */}
 
       <FiltrosDePosts
         filtros={filtros}
